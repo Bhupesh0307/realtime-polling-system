@@ -1,0 +1,31 @@
+import mongoose, { Document, Schema, Types } from "mongoose";
+
+export interface VoteDocument extends Document {
+  pollId: Types.ObjectId;
+  studentName: string;
+  selectedOptionIndex: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const VoteSchema = new Schema<VoteDocument>(
+  {
+    pollId: {
+      type: Schema.Types.ObjectId,
+      ref: "Poll",
+      required: true
+    },
+    studentName: {
+      type: String,
+      required: true
+    },
+    selectedOptionIndex: {
+      type: Number,
+      required: true
+    }
+  },
+  { timestamps: true }
+);
+
+export const Vote = mongoose.model<VoteDocument>("Vote", VoteSchema);
+
