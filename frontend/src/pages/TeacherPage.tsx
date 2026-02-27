@@ -169,7 +169,7 @@ export default function TeacherPage() {
     const fetchHistory = async () => {
       setLoadingHistory(true);
       try {
-        const res = await fetch("http://localhost:4000/api/polls/history");
+        const res = await fetch("https://realtime-polling-system-731v.onrender.com/api/polls/history");
         if (!res.ok) throw new Error("Failed to fetch poll history");
         const data: HistoryPoll[] = await res.json();
         setPollHistory(data);
