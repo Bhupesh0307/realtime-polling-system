@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { socket } from "../services/socket";
 
@@ -23,21 +23,12 @@ interface StudentSummary {
   name: string;
 }
 
-const containerStyle: React.CSSProperties = {
-  padding: "16px",
-  fontFamily: "sans-serif"
-};
-
-const sectionStyle: React.CSSProperties = {
-  marginBottom: "16px"
-};
-
 export default function StudentPage() {
   const [pollState, setPollState] = useState<PollState | null>(null);
   const [studentName, setStudentName] = useState<string>("");
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState<number>(0);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
   const [hasEnteredName, setHasEnteredName] = useState(false);
   const [hasVoted, setHasVoted] = useState(false);
   const [removedByTeacher, setRemovedByTeacher] = useState(false);
