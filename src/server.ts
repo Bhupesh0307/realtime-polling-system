@@ -6,6 +6,7 @@ import { PORT, MONGO_URI } from "./config/env";
 import { connectDB } from "./utils/db";
 import { registerSocketHandlers } from "./sockets/index";
 import { healthRouter } from "./controllers/healthController";
+import "dotenv/config";
 
 async function bootstrap() {
   const app: Application = express();
@@ -26,7 +27,7 @@ async function bootstrap() {
 
   registerSocketHandlers(io);
 
-  await connectDB(MONGO_URI);
+  await connectDB();
 
   server.listen(PORT, () => {
     console.log(`HTTP server listening on port ${PORT}`);
