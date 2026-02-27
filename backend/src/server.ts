@@ -5,6 +5,7 @@ import { Server as SocketIOServer } from "socket.io";
 import { PORT, MONGO_URI } from "./config/env";
 import { connectDB } from "./utils/db";
 import { registerSocketHandlers } from "./sockets/index";
+import { Poll } from "./models/Poll";
 import "dotenv/config";
 
 async function bootstrap() {
@@ -26,6 +27,15 @@ async function bootstrap() {
   registerSocketHandlers(io);
 
   await connectDB();
+
+  app.get("/api/polls/history", async (_req, res) => {
+    try {
+      const polls = await Poll.find({ status: "completed" }).sort({ createdAt: -1 });
+      res.json(polls);
+    } catch {
+      res.status(500).json({ error: "Failed to fetch poll history" });
+    }
+  });
 
   server.listen(PORT, () => {
     console.log(`HTTP server listening on port ${PORT}`);
