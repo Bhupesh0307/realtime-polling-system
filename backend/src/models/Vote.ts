@@ -27,5 +27,7 @@ const VoteSchema = new Schema<VoteDocument>(
   { timestamps: true }
 );
 
+VoteSchema.index({ pollId: 1, studentName: 1 }, { unique: true });
+
 export const Vote = mongoose.model<VoteDocument>("Vote", VoteSchema);
 

@@ -5,7 +5,6 @@ import { Server as SocketIOServer } from "socket.io";
 import { PORT, MONGO_URI } from "./config/env";
 import { connectDB } from "./utils/db";
 import { registerSocketHandlers } from "./sockets/index";
-import { healthRouter } from "./controllers/healthController";
 import "dotenv/config";
 
 async function bootstrap() {
@@ -14,7 +13,6 @@ async function bootstrap() {
   app.use(cors());
   app.use(express.json());
 
-  app.use("/health", healthRouter);
 
   const server = http.createServer(app);
 

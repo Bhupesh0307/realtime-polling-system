@@ -10,8 +10,31 @@ export class PollService {
   async createPoll(
     question: string,
     options: string[],
-    duration: number
+    duration: number,
+    activeStudentCount: number
   ): Promise<PollDocument> {
+    if (duration > 60000) {
+      throw new Error("Maximum poll duration is 60 seconds");
+    }
+
+    // Ensure any expired active poll is marked as completed before proceeding
+    const existingActivePoll = await Poll.findOne({ status: "active" })
+      .sort({ createdAt: -1 })
+      .exec();
+
+    if (existingActivePoll) {
+      await this.closePollIfExpired(existingActivePoll._id.toString());
+    }
+
+    // After attempting to close expired polls, prevent creating a new poll
+    // if any active poll still exists
+    const activePollAfterClose = await Poll.findOne({ status: "active" }).exec();
+    if (activePollAfterClose) {
+      throw new Error(
+        "An active poll already exists. Close or complete it before creating a new one."
+      );
+    }
+
     const now = Date.now();
 
     const poll = new Poll({
@@ -26,6 +49,16 @@ export class PollService {
   }
 
   async getActivePoll(): Promise<ActivePollResult | null> {
+    // First, ensure any expired active poll is marked as completed
+    const latestActivePoll = await Poll.findOne({ status: "active" })
+      .sort({ createdAt: -1 })
+      .exec();
+
+    if (latestActivePoll) {
+      await this.closePollIfExpired(latestActivePoll._id.toString());
+    }
+
+    // Re-query for an active poll after closing any expired ones
     const poll = await Poll.findOne({ status: "active" })
       .sort({ createdAt: -1 })
       .exec();
@@ -96,24 +129,31 @@ export class PollService {
       throw new Error("Student has already voted in this poll");
     }
 
-    const vote = new Vote({
-      pollId: poll._id,
-      studentName,
-      selectedOptionIndex
-    });
-    await vote.save();
+    try {
+      const vote = new Vote({
+        pollId: poll._id,
+        studentName,
+        selectedOptionIndex
+      });
+      await vote.save();
 
-    const updatedPoll = await Poll.findByIdAndUpdate(
-      pollId,
-      { $inc: { [`options.${selectedOptionIndex}.votes`]: 1 } },
-      { new: true }
-    ).exec();
+      const updatedPoll = await Poll.findByIdAndUpdate(
+        pollId,
+        { $inc: { [`options.${selectedOptionIndex}.votes`]: 1 } },
+        { new: true }
+      ).exec();
 
-    if (!updatedPoll) {
-      throw new Error("Poll not found");
+      if (!updatedPoll) {
+        throw new Error("Poll not found");
+      }
+
+      return { poll: updatedPoll, vote };
+    } catch (error: any) {
+      if (error && error.code === 11000) {
+        throw new Error("Student has already voted in this poll");
+      }
+      throw error;
     }
-
-    return { poll: updatedPoll, vote };
   }
 
   async getPollResults(pollId: string): Promise<PollDocument | null> {
