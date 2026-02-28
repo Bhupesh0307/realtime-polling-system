@@ -9,7 +9,7 @@ A real-time classroom polling app. Teachers create timed polls with multiple cho
 | App        | URL |
 |-----------|-----|
 | **Frontend** | [https://realtime-polling-system-chi.vercel.app/](https://realtime-polling-system-chi.vercel.app/)  |
-| **Backend**  | [https://realtime-polling-system-731v.onrender.com](https://realtime-polling-system-731v.onrender.com) |
+| **Backend**  | [https://realtime-polling-system-731v.onrender.com](https://realtime-polling-system-731v.onrender.com/api/polls/history) |
 
 ---
 
