@@ -17,33 +17,32 @@ export function getActiveStudents(): { socketId: string; name: string }[] {
   }));
 }
 
+function emitError(socket: Socket, message: string): void {
+  socket.emit("error_message", message);
+}
+
 export function registerPollSocketHandlers(io: SocketIOServer): void {
   io.on("connection", (socket: Socket) => {
-    console.log(`Socket connected: ${socket.id}`);
+    console.log("Socket connected:", socket.id);
 
     socket.on(
       "create_poll",
-      async (payload: { question: string; options: string[]; duration: number }) => {
+      async (payload: { question?: string; options?: string[]; duration?: number }) => {
         try {
-          const { question, options, duration } = payload ?? {};
-          if (!question || !Array.isArray(options) || typeof duration !== "number") {
-            socket.emit(
-              "error_message",
-              "Invalid payload: question, options (array), and duration (number) required"
-            );
-            return;
-          }
-
-          const activeStudentCount = getActiveStudentCount();
-
-          await pollService.createPoll(question, options, duration, activeStudentCount);
+          const question = payload?.question;
+          const options = payload?.options;
+          const duration = payload?.duration;
+          const activeCount = getActiveStudentCount();
+          await pollService.createPoll(
+            question ?? "",
+            Array.isArray(options) ? options : [],
+            typeof duration === "number" ? duration : 0,
+            activeCount
+          );
           const state = await pollService.getActivePoll();
           io.emit("poll_state", state);
         } catch (err) {
-          socket.emit(
-            "error_message",
-            err instanceof Error ? err.message : "Unknown error"
-          );
+          emitError(socket, err instanceof Error ? err.message : "Unknown error");
         }
       }
     );
@@ -57,29 +56,21 @@ export function registerPollSocketHandlers(io: SocketIOServer): void {
         const state = await pollService.getActivePoll();
         socket.emit("poll_state", state);
       } catch (err) {
-        socket.emit(
-          "error_message",
-          err instanceof Error ? err.message : "Unknown error"
-        );
+        emitError(socket, err instanceof Error ? err.message : "Unknown error");
       }
     });
 
     socket.on(
       "register_student",
-      (payload: { studentName: string } | null | undefined) => {
+      (payload: { studentName?: string } | null | undefined) => {
         const name = payload?.studentName;
         if (typeof name !== "string" || !name.trim()) {
-          socket.emit("error_message", "Invalid payload: studentName is required");
+          emitError(socket, "Student name is required");
           return;
         }
         const trimmed = name.trim();
         activeStudents.set(socket.id, trimmed);
-        console.log(
-          "Student connected:",
-          trimmed,
-          "Total:",
-          activeStudents.size
-        );
+        console.log("Student connected:", trimmed, "Total:", activeStudents.size);
         io.emit("student_list_update", getActiveStudents());
       }
     );
@@ -91,51 +82,36 @@ export function registerPollSocketHandlers(io: SocketIOServer): void {
     socket.on(
       "submit_vote",
       async (payload: {
-        pollId: string;
-        studentName: string;
-        selectedOptionIndex: number;
+        pollId?: string;
+        studentName?: string;
+        selectedOptionIndex?: number;
       }) => {
         try {
-          const { pollId, studentName, selectedOptionIndex } = payload ?? {};
-          if (
-            typeof pollId !== "string" ||
-            typeof studentName !== "string" ||
-            typeof selectedOptionIndex !== "number"
-          ) {
-            socket.emit(
-              "error_message",
-              "Invalid payload: pollId, studentName, and selectedOptionIndex required"
-            );
-            return;
-          }
-
+          const pollId = payload?.pollId ?? "";
+          const studentName = payload?.studentName ?? "";
+          const selectedOptionIndex = payload?.selectedOptionIndex ?? -1;
           await pollService.submitVote(pollId, studentName, selectedOptionIndex);
           const state = await pollService.getActivePoll();
           io.emit("poll_state", state);
         } catch (err) {
-          socket.emit(
-            "error_message",
-            err instanceof Error ? err.message : "Unknown error"
-          );
+          emitError(socket, err instanceof Error ? err.message : "Unknown error");
         }
       }
     );
 
     socket.on(
       "chat_message",
-      (payload: { sender: string; message: string } | null | undefined) => {
+      (payload: { sender?: string; message?: string } | null | undefined) => {
         const sender = payload?.sender;
         const message = payload?.message;
-
         if (typeof sender !== "string" || !sender.trim()) {
-          socket.emit("error_message", "Invalid payload: sender is required");
+          emitError(socket, "Sender is required");
           return;
         }
         if (typeof message !== "string" || !message.trim()) {
-          socket.emit("error_message", "Invalid payload: message is required");
+          emitError(socket, "Message is required");
           return;
         }
-
         io.emit("chat_message", {
           sender: sender.trim(),
           message: message.trim(),
@@ -146,30 +122,26 @@ export function registerPollSocketHandlers(io: SocketIOServer): void {
 
     socket.on(
       "remove_student",
-      (payload: { studentSocketId: string } | null | undefined) => {
+      (payload: { studentSocketId?: string } | null | undefined) => {
         const studentSocketId = payload?.studentSocketId;
         if (typeof studentSocketId !== "string" || !studentSocketId) {
-          socket.emit("error_message", "Invalid payload: studentSocketId is required");
+          emitError(socket, "Student socket ID is required");
           return;
         }
-
         if (!teacherSocketId || socket.id !== teacherSocketId) {
-          socket.emit("error_message", "Only the teacher can remove students");
+          emitError(socket, "Only the teacher can remove students");
           return;
         }
-
         const studentName = activeStudents.get(studentSocketId);
         if (!studentName) {
-          socket.emit("error_message", "Student not found or already disconnected");
+          emitError(socket, "Student not found or already disconnected");
           return;
         }
-
         io.to(studentSocketId).emit("removed_by_teacher");
         const targetSocket = io.sockets.sockets.get(studentSocketId);
         if (targetSocket) {
           targetSocket.disconnect(true);
         }
-
         activeStudents.delete(studentSocketId);
         console.log("Student removed:", studentName);
         io.emit("student_list_update", getActiveStudents());
@@ -180,12 +152,7 @@ export function registerPollSocketHandlers(io: SocketIOServer): void {
       const existingName = activeStudents.get(socket.id);
       activeStudents.delete(socket.id);
       if (existingName) {
-        console.log(
-          "Student disconnected:",
-          existingName,
-          "Total:",
-          activeStudents.size
-        );
+        console.log("Student disconnected:", existingName, "Total:", activeStudents.size);
         io.emit("student_list_update", getActiveStudents());
       }
     });
@@ -195,10 +162,7 @@ export function registerPollSocketHandlers(io: SocketIOServer): void {
         const state = await pollService.getActivePoll();
         socket.emit("poll_state", state);
       } catch (err) {
-        socket.emit(
-          "error_message",
-          err instanceof Error ? err.message : "Unknown error"
-        );
+        emitError(socket, err instanceof Error ? err.message : "Unknown error");
       }
     })();
   });

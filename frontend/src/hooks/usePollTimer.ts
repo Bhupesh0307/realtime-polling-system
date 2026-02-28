@@ -1,45 +1,33 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
-function formatMs(ms: number): string {
-  const totalSeconds = Math.ceil(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-}
-
-export function usePollTimer(remainingTimeMs?: number) {
-  const [timeLeft, setTimeLeft] = useState<number>(remainingTimeMs ?? 0);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+/**
+ * Drives a countdown in seconds from a remaining-time-in-ms value (e.g. from poll state).
+ * Updates every second until it hits zero.
+ */
+export function usePollTimer(remainingTimeMs: number | undefined): number {
+  const [secondsLeft, setSecondsLeft] = useState(0);
 
   useEffect(() => {
-    setTimeLeft(remainingTimeMs ?? 0);
-  }, [remainingTimeMs]);
-
-  useEffect(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
+    if (remainingTimeMs == null || typeof remainingTimeMs !== "number") {
+      setSecondsLeft(0);
+      return;
     }
+    const initial = Math.floor(remainingTimeMs / 1000);
+    setSecondsLeft(initial);
+    if (initial <= 0) return;
 
-    if (timeLeft <= 0) return;
-
-    intervalRef.current = setInterval(() => {
-      setTimeLeft((prev) => {
-        const next = Math.max(prev - 1000, 0);
-        return next;
+    const tick = setInterval(() => {
+      setSecondsLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(tick);
+          return 0;
+        }
+        return prev - 1;
       });
     }, 1000);
 
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-  }, [timeLeft]);
+    return () => clearInterval(tick);
+  }, [remainingTimeMs]);
 
-  const formattedTime = useMemo(() => formatMs(timeLeft), [timeLeft]);
-
-  return { timeLeft, formattedTime };
+  return secondsLeft;
 }
-
