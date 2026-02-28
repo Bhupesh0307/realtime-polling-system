@@ -52,7 +52,7 @@ export default function RoleSelectionPage() {
         <div className="mb-10 flex w-full flex-col items-center justify-center gap-5 md:flex-row">
           <RoleCard
             title="I’m a Student"
-            description="Lorem Ipsum is simply dummy text of the printing and typesetting industry"
+            description="submit your answers, participate in live polls, and see how your responses compare with your classmates"
             selected={selectedRole === "student"}
             onClick={() => setSelectedRole("student")}
           />
